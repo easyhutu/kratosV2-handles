@@ -108,7 +108,7 @@ func (a *Auth) User() http2.FilterFunc {
 
 func (a *Auth) tokenUser(request *http.Request) (u *UserInfo, err error) {
 	token := ""
-	if err := request.ParseForm(); err != nil {
+	if err := request.ParseForm(); err == nil {
 		if request.Form.Get(a.tokenKey) != "" {
 			token = request.Form.Get(a.tokenKey)
 		}
