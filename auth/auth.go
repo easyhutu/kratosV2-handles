@@ -31,6 +31,7 @@ type Options struct {
 }
 
 type LoginFunc func(ctx http2.Context) (*UserInfo, error)
+type LogoutFunc func(context2 http2.Context) error
 
 func New(opt *Options) *Auth {
 	if opt.TokenExpire == 0 {
@@ -43,8 +44,10 @@ func New(opt *Options) *Auth {
 		opt.TokenKey = "token"
 	}
 	return &Auth{
-		redis:  redis.NewClient(opt.Redis),
-		expire: opt.TokenExpire,
+		redis:       redis.NewClient(opt.Redis),
+		expire:      opt.TokenExpire,
+		validateMsg: opt.ValidateMsgTemp,
+		tokenKey:    opt.TokenKey,
 	}
 }
 
@@ -59,16 +62,17 @@ func (a *Auth) PutUser(info *UserInfo) error {
 	return err
 }
 
-func (a *Auth) GetUser(token string) (*UserInfo, error) {
+func (a *Auth) DelUser(token string) error {
+	return a.redis.Del(token).Err()
+}
+
+func (a *Auth) getUser(token string) (*UserInfo, error) {
 	bs, err := a.redis.Get(token).Bytes()
 	if err != nil {
-		log.Errorf("token %s, bs: %x", token, bs)
 		return nil, err
 	}
 	u := &UserInfo{}
-	if err := json.Unmarshal(bs, &u); err != nil {
-		log.Errorf("auth json marshal err: %v", err)
-	}
+	_ = json.Unmarshal(bs, u)
 	return u, nil
 }
 
@@ -104,8 +108,10 @@ func (a *Auth) User() http2.FilterFunc {
 
 func (a *Auth) tokenUser(request *http.Request) (u *UserInfo, err error) {
 	token := ""
-	if request.Form.Get(a.tokenKey) != "" {
-		token = request.Form.Get(a.tokenKey)
+	if err := request.ParseForm(); err != nil {
+		if request.Form.Get(a.tokenKey) != "" {
+			token = request.Form.Get(a.tokenKey)
+		}
 	}
 	if ctoken, err := request.Cookie(a.tokenKey); err == nil {
 		if ctoken.Value != "" {
@@ -118,24 +124,43 @@ func (a *Auth) tokenUser(request *http.Request) (u *UserInfo, err error) {
 	if token == "" {
 		return
 	}
-	return a.GetUser(token)
+	return a.getUser(token)
 }
 
 func (a *Auth) RegisterLoginHandle(loginFunc LoginFunc) http2.HandlerFunc {
-	return func(c http2.Context) error {
-		userInfo, err := loginFunc(c)
+	return func(ctx http2.Context) error {
+		userInfo, err := loginFunc(ctx)
 		if err != nil {
-			log.Errorf("login error %+v", err)
 			return err
 		}
 		if userInfo != nil {
 			a.PutUser(userInfo)
 		}
-		return nil
+		return err
+	}
+}
+
+func (a *Auth) RegisterLogoutHandle(logoutFunc LogoutFunc) http2.HandlerFunc {
+	return func(c http2.Context) error {
+		if logoutFunc != nil {
+			err := logoutFunc(c)
+			if err != nil {
+				return err
+			}
+		}
+		u, err := a.tokenUser(c.Request())
+		if err != nil {
+			return err
+		}
+		a.DelUser(u.Token)
+		return err
 	}
 }
 
 func FromContext(ctx context.Context) (u interface{}, ok bool) {
 	ui, ok := ctx.Value(authKey{}).(*UserInfo)
-	return ui.Info, ok
+	if ui != nil {
+		return ui.Info, ok
+	}
+	return nil, ok
 }
