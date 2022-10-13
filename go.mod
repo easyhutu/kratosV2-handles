@@ -1,4 +1,4 @@
-module kratosV2-handles
+module github.com/easyhutu/kratosV2-handles
 
 go 1.17
 
