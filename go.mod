@@ -3,7 +3,7 @@ module github.com/easyhutu/kratosV2-handles
 go 1.17
 
 require (
-	github.com/go-kratos/kratos/v2 v2.5.1 // indirect
+	github.com/go-kratos/kratos/v2 v2.4.1 // indirect
 	github.com/go-playground/form/v4 v4.2.0 // indirect
 	github.com/go-redis/redis v6.15.9+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
