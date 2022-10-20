@@ -1,7 +1,4 @@
-### 安装
-```shell
-go get github.com/easyhutu/kratosV2-handles
-```
+
 ### 使用
 
 ```go
