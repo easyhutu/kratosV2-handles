@@ -157,10 +157,10 @@ func (a *Auth) RegisterLogoutHandle(logoutFunc LogoutFunc) http2.HandlerFunc {
 	}
 }
 
-func FromContext(ctx context.Context) (u interface{}, ok bool) {
-	ui, ok := ctx.Value(authKey{}).(*UserInfo)
-	if ui != nil {
-		return ui.Info, ok
+func FromContext(ctx context.Context) (u *UserInfo, ok bool) {
+	u, ok = ctx.Value(authKey{}).(*UserInfo)
+	if !ok {
+		return &UserInfo{}, ok
 	}
-	return nil, ok
+	return
 }

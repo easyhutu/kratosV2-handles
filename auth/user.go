@@ -1,6 +1,7 @@
 package auth
 
 type UserInfo struct {
+	Uid   int64       `json:"uid"`
 	Token string      `json:"token"`
 	Info  interface{} `json:"info"`
 }
